@@ -1,47 +1,36 @@
-
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
+const express = require("express");
+const { WebSocketServer } = require("ws");
 
 const app = express();
+const server = app.listen(3000, () => console.log("Server запущен на порту 5000"));
+const wss = new WebSocketServer({ server });
 
-app.use(cors({
-    origin: '*', // Разрешаем запросы от этого origin
-    methods: ['GET', 'POST'], // Разрешаем только GET и POST запросы
-    credentials: true // Разрешаем передачу кук и заголовков авторизации
-}));
+const rooms = new Map();
 
-const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: '*', // Разрешаем подключения от этого origin
-        methods: ['GET', 'POST'] // Разрешаем только GET и POST запросы
+wss.on("connection", (ws) => {
+  ws.on("message", (message) => {
+    const data = JSON.parse(message);
+
+    if (data.type === "join") {
+      if (!rooms.has(data.roomId)) {
+        rooms.set(data.roomId, []);
+      }
+      rooms.get(data.roomId).push(ws);
     }
-});
 
-io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
-
-    socket.on('createRoom', (roomId) => {
-        socket.join(roomId);
-        socket.emit('roomCreated', roomId);
+    rooms.get(data.roomId).forEach((client) => {
+      if (client !== ws && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(data));
+      }
     });
+  });
 
-    socket.on('joinRoom', (roomId) => {
-        socket.join(roomId);
-        socket.to(roomId).emit('userJoined', socket.id);
+  ws.on("close", () => {
+    rooms.forEach((clients, roomId) => {
+      rooms.set(roomId, clients.filter((client) => client !== ws));
+      if (rooms.get(roomId).length === 0) {
+        rooms.delete(roomId);
+      }
     });
-
-    socket.on('signal', (data) => {
-        socket.to(data.roomId).emit('signal', data);
-    });
-
-    socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
-    });
-});
-
-server.listen(3000, () => {
-    console.log('Server is running on port 3000');
+  });
 });
