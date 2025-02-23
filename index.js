@@ -25,8 +25,8 @@ wss.on("connection", (ws) => {
     if (data.type === "offer") {
       console.log(`📡 Получен offer для комнаты ${data.roomId}`);
 
-      if (!rooms.has(data.roomId)) {
-        console.error(`❌ Комната ${data.roomId} не существует!`);
+      if (!data.roomId || !rooms.has(data.roomId)) {
+        console.error(`❌ Ошибка: комната ${data.roomId} не существует!`);
         return;
       }
 
