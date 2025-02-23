@@ -19,15 +19,24 @@ wss.on("connection", (ws) => {
         rooms.set(data.roomId, []);
       }
       rooms.get(data.roomId).push(ws);
-      console.log(`👥 Клиент присоединился к комнате ${data.roomId}`);
+      console.log(`✅ Клиент присоединился к комнате ${data.roomId}`);
     }
 
-    rooms.get(data.roomId).forEach((client) => {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(data));
-        console.log(`📤 Сообщение отправлено в комнату ${data.roomId}`);
+    if (data.type === "offer") {
+      console.log(`📡 Получен offer для комнаты ${data.roomId}`);
+
+      if (!rooms.has(data.roomId)) {
+        console.error(`❌ Комната ${data.roomId} не существует!`);
+        return;
       }
-    });
+
+      rooms.get(data.roomId).forEach((client) => {
+        if (client !== ws && client.readyState === ws.OPEN) {
+          client.send(JSON.stringify(data));
+          console.log(`📤 Отправлен offer в комнату ${data.roomId}`);
+        }
+      });
+    }
   });
 
   ws.on("close", () => {
